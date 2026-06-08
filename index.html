@@ -5,55 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>FaceAnalyzer · Tu tipo de rostro</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        .debug-panel {
-            background: #1e1e2e;
-            color: #50fa7b;
-            font-family: monospace;
-            font-size: 0.7rem;
-            padding: 10px;
-            border-radius: 12px;
-            margin-top: 15px;
-            max-height: 120px;
-            overflow-y: auto;
-            display: none;
-        }
-        .debug-panel.show {
-            display: block;
-        }
-        .btn-debug {
-            background: transparent;
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            cursor: pointer;
-            margin-left: 10px;
-        }
-        .face-status {
-            background: rgba(0,0,0,0.7);
-            padding: 8px;
-            border-radius: 10px;
-            font-size: 0.7rem;
-            margin-top: 10px;
-            text-align: center;
-        }
-        .status-loading {
-            background: #f0ad4e;
-            color: #1e1e2e;
-        }
-        .status-ready {
-            background: #5cb85c;
-            color: white;
-        }
-        .status-error {
-            background: #d9534f;
-            color: white;
-        }
-    </style>
 </head>
 <body>
 
@@ -67,10 +20,10 @@
         <div class="camera-panel">
             <div class="video-wrapper">
                 <video id="webcam" autoplay playsinline muted></video>
-                <canvas id="overlayCanvas" width="640" height="480"></canvas>
+                <canvas id="overlayCanvas"></canvas>
             </div>
-            <div id="faceStatus" class="face-status status-loading">
-                <i class="fas fa-spinner fa-pulse"></i> Cargando modelo de IA...
+            <div id="faceStatus" class="face-status">
+                <i class="fas fa-spinner fa-pulse"></i> Cargando modelos...
             </div>
             <div class="controls">
                 <button id="btnStart" class="btn-primary">
@@ -79,31 +32,22 @@
                 <button id="btnAnalyze" class="btn-secondary" disabled>
                     <i class="fas fa-chart-line"></i> Analizar mi rostro
                 </button>
-                <button id="btnDebug" class="btn-debug">
-                    <i class="fas fa-bug"></i> Debug
-                </button>
             </div>
             <div class="loading" id="loading" style="display: none;">
                 <i class="fas fa-spinner fa-pulse"></i> Analizando...
             </div>
-            <div id="debugPanel" class="debug-panel">
-                <p><strong>🔧 Diagnóstico:</strong></p>
-                <div id="debugContent"></div>
-            </div>
         </div>
 
-        <div class="results-panel" id="resultsPanel">
+        <div class="results-panel">
             <h2>Tu tipo de rostro</h2>
-            <div class="result-card" id="resultCard">
-                <div class="result-icon" id="resultIcon">
-                    <i class="fas fa-smile"></i>
-                </div>
+            <div class="result-card">
+                <div class="result-icon" id="resultIcon">✨</div>
                 <div class="result-name" id="resultName">--</div>
                 <div class="result-description" id="resultDescription">
                     Activa la cámara y presiona "Analizar"
                 </div>
             </div>
-            <div class="metrics" id="metrics">
+            <div class="metrics">
                 <div class="metric">
                     <span>Proporción ancho/alto</span>
                     <strong id="ratioVal">--</strong>
@@ -113,7 +57,7 @@
                     <strong id="angleVal">--</strong>
                 </div>
                 <div class="metric">
-                    <span>Tipo detectado</span>
+                    <span>Tipo sugerido</span>
                     <strong id="cheekVal">--</strong>
                 </div>
             </div>
@@ -121,7 +65,7 @@
     </div>
 </div>
 
-<!-- Face-api.js (más estable que MediaPipe) -->
+<!-- Face-api.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
 <script src="script.js"></script>
