@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>FaceAnalyzer · Tu tipo de rostro</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>✨ FaceAnalyzer ✨</h1>
+        <p>Descubre tu tipo de rostro con inteligencia artificial</p>
+    </header>
+
+    <div class="main-content">
+        <!-- Panel de cámara -->
+        <div class="camera-panel">
+            <div class="video-wrapper">
+                <video id="webcam" autoplay playsinline muted></video>
+                <canvas id="overlayCanvas" width="640" height="480"></canvas>
+            </div>
+            <div class="controls">
+                <button id="btnStart" class="btn-primary">
+                    <i class="fas fa-camera"></i> Activar cámara
+                </button>
+                <button id="btnAnalyze" class="btn-secondary" disabled>
+                    <i class="fas fa-chart-line"></i> Analizar mi rostro
+                </button>
+            </div>
+            <div class="loading" id="loading" style="display: none;">
+                <i class="fas fa-spinner fa-pulse"></i> Analizando...
+            </div>
+        </div>
+
+        <!-- Panel de resultados -->
+        <div class="results-panel" id="resultsPanel">
+            <h2>Tu tipo de rostro</h2>
+            <div class="result-card" id="resultCard">
+                <div class="result-icon" id="resultIcon">
+                    <i class="fas fa-smile"></i>
+                </div>
+                <div class="result-name" id="resultName">--</div>
+                <div class="result-description" id="resultDescription">
+                    Activa la cámara y presiona "Analizar"
+                </div>
+            </div>
+            <div class="metrics" id="metrics">
+                <div class="metric">
+                    <span>Proporción ancho/alto</span>
+                    <strong id="ratioVal">--</strong>
+                </div>
+                <div class="metric">
+                    <span>Ángulo mandíbula</span>
+                    <strong id="angleVal">--</strong>
+                </div>
+                <div class="metric">
+                    <span>Anchura pómulos</span>
+                    <strong id="cheekVal">--</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-box">
+        <i class="fas fa-lightbulb"></i>
+        <p>Mantén el rostro recto y bien iluminado. La IA detectará automáticamente 478 puntos faciales para calcular tu tipo.</p>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js" crossorigin="anonymous"></script>
+<script src="script.js"></script>
+</body>
+</html>
