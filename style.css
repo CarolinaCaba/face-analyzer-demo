@@ -26,7 +26,6 @@ header h1 {
     font-weight: 700;
     color: white;
     margin-bottom: 12px;
-    letter-spacing: -0.5px;
 }
 
 header p {
@@ -40,7 +39,6 @@ header p {
     gap: 30px;
 }
 
-/* Panel de cámara */
 .camera-panel {
     background: white;
     border-radius: 32px;
@@ -56,7 +54,7 @@ header p {
     aspect-ratio: 4 / 3;
 }
 
-#webcam, #overlayCanvas {
+#webcam {
     position: absolute;
     top: 0;
     left: 0;
@@ -66,8 +64,23 @@ header p {
 }
 
 #overlayCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     z-index: 10;
     pointer-events: none;
+}
+
+.face-status {
+    background: rgba(0,0,0,0.7);
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    margin-top: 12px;
+    text-align: center;
+    color: white;
 }
 
 .controls {
@@ -81,20 +94,18 @@ header p {
     padding: 12px 28px;
     border-radius: 60px;
     font-weight: 600;
-    font-size: 0.95rem;
     cursor: pointer;
-    transition: all 0.3s ease;
     border: none;
     font-family: inherit;
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    transition: all 0.2s ease;
 }
 
 .btn-primary {
     background: #667eea;
     color: white;
-    box-shadow: 0 4px 12px rgba(102,126,234,0.4);
 }
 
 .btn-primary:hover {
@@ -124,7 +135,6 @@ header p {
     font-weight: 500;
 }
 
-/* Panel de resultados */
 .results-panel {
     background: white;
     border-radius: 32px;
@@ -144,7 +154,6 @@ header p {
     padding: 32px;
     text-align: center;
     margin-bottom: 24px;
-    border: 1px solid rgba(102,126,234,0.2);
 }
 
 .result-icon {
@@ -160,7 +169,7 @@ header p {
 }
 
 .result-description {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: #6b7280;
 }
 
@@ -180,59 +189,20 @@ header p {
 
 .metric span {
     color: #6b7280;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
 .metric strong {
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: #1f2937;
-    font-family: monospace;
 }
 
-.info-box {
-    margin-top: 30px;
-    background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(10px);
-    border-radius: 24px;
-    padding: 18px 24px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    color: white;
-    flex-wrap: wrap;
-}
-
-.info-box i {
-    font-size: 1.5rem;
-}
-
-.info-box p {
-    font-size: 0.85rem;
-    line-height: 1.4;
-}
-
-/* Responsive */
 @media (max-width: 900px) {
     .main-content {
         grid-template-columns: 1fr;
-        gap: 25px;
     }
     
     header h1 {
         font-size: 1.8rem;
-    }
-    
-    .result-name {
-        font-size: 1.5rem;
-    }
-}
-
-@media (max-width: 500px) {
-    .controls {
-        flex-direction: column;
-    }
-    
-    .btn-primary, .btn-secondary {
-        justify-content: center;
     }
 }
