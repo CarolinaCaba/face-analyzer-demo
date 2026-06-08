@@ -4,11 +4,8 @@ const canvas = document.getElementById('overlayCanvas');
 const ctx = canvas.getContext('2d');
 const btnStart = document.getElementById('btnStart');
 const btnAnalyze = document.getElementById('btnAnalyze');
-const btnDebug = document.getElementById('btnDebug');
 const loading = document.getElementById('loading');
 const faceStatus = document.getElementById('faceStatus');
-const debugPanel = document.getElementById('debugPanel');
-const debugContent = document.getElementById('debugContent');
 
 const resultName = document.getElementById('resultName');
 const resultIcon = document.getElementById('resultIcon');
@@ -18,63 +15,12 @@ const angleVal = document.getElementById('angleVal');
 const cheekVal = document.getElementById('cheekVal');
 
 // ========== VARIABLES ==========
+let modelsLoaded = false;
 let stream = null;
 let detectionInterval = null;
 let currentDetection = null;
-let modelsLoaded = false;
 
-// ========== FUNCIONES DE DEBUG ==========
-function addDebugLog(message, isError = false) {
-    const p = document.createElement('p');
-    p.innerHTML = `📌 ${new Date().toLocaleTimeString()}: ${message}`;
-    p.style.color = isError ? '#ff5555' : '#50fa7b';
-    debugContent.appendChild(p);
-    debugPanel.scrollTop = debugPanel.scrollHeight;
-    console.log(message);
-}
-
-// ========== CLASIFICACIÓN DE ROSTRO ==========
-function clasificarRostroPorMedidas(ancho, alto, relacionAnchoAlto, puntos) {
-    // Calcular ángulo de mandíbula aproximado usando puntos de la quijada
-    let anguloMandibula = 140; // valor por defecto
-    
-    if (puntos && puntos.length > 0) {
-        try {
-            // Puntos de mandíbula en face-api: índice 0-15 aproximadamente
-            const mandIzq = puntos[2];
-            const menton = puntos[8];
-            const mandDer = puntos[14];
-            if (mandIzq && menton && mandDer) {
-                anguloMandibula = calcularAngulo(mandIzq, menton, mandDer);
-            }
-        } catch(e) {}
-    }
-    
-    addDebugLog(`Medidas: ancho=${ancho}, alto=${alto}, ratio=${relacionAnchoAlto}, ángulo=${anguloMandibula}`);
-    
-    // Clasificación basada en proporciones y ángulo
-    if (relacionAnchoAlto >= 1.4 && relacionAnchoAlto <= 1.6 && anguloMandibula > 145) {
-        return { tipo: "Rostro Ovalado", icono: "🥚", descripcion: "Proporciones equilibradas, mandíbula redondeada. Es el tipo más versátil para peinados y gafas." };
-    }
-    if (relacionAnchoAlto >= 1.0 && relacionAnchoAlto <= 1.2 && anguloMandibula > 155) {
-        return { tipo: "Rostro Redondo", icono: "⚪", descripcion: "Ancho y alto similares, mejillas anchas. Los peinados con volumen superior ayudan a estilizar." };
-    }
-    if (relacionAnchoAlto >= 1.0 && relacionAnchoAlto <= 1.2 && anguloMandibula < 130) {
-        return { tipo: "Rostro Cuadrado", icono: "⬛", descripcion: "Mandíbula angular, frente y mentón del mismo ancho. Los cortes en capas suavizan los ángulos." };
-    }
-    if (relacionAnchoAlto > 1.6) {
-        return { tipo: "Rostro Rectangular / Alargado", icono: "📏", descripcion: "Rostro más largo que ancho. El flequillo ayuda a acortar visualmente." };
-    }
-    if (relacionAnchoAlto >= 1.3 && relacionAnchoAlto <= 1.5) {
-        if (anguloMandibula < 135) {
-            return { tipo: "Rostro Diamante", icono: "💎", descripcion: "Pómulos anchos, frente y mentón estrechos. Ideal para volumen en la parte superior." };
-        }
-        return { tipo: "Rostro Corazón", icono: "💜", descripcion: "Frente ancha, mentón puntiagudo. Busca equilibrio con volumen en la parte inferior." };
-    }
-    
-    return { tipo: "Rostro Mixto", icono: "✨", descripcion: "Combinación de características únicas. ¡Eres único/a!" };
-}
-
+// ========== FUNCIONES DE CLASIFICACIÓN ==========
 function calcularAngulo(p1, p2, p3) {
     const v1 = { x: p1.x - p2.x, y: p1.y - p2.y };
     const v2 = { x: p3.x - p2.x, y: p3.y - p2.y };
@@ -84,6 +30,36 @@ function calcularAngulo(p1, p2, p3) {
     if (mag1 === 0 || mag2 === 0) return 140;
     const rad = Math.acos(Math.min(1, Math.max(-1, dot / (mag1 * mag2))));
     return rad * 180 / Math.PI;
+}
+
+function clasificarRostro(ratioAnchoAlto, puntos) {
+    let angulo = 140;
+    if (puntos && puntos.length > 0 && puntos[8] && puntos[0] && puntos[16]) {
+        angulo = calcularAngulo(puntos[0], puntos[8], puntos[16]);
+    }
+    
+    const r = parseFloat(ratioAnchoAlto);
+    const a = angulo;
+    
+    if (r >= 1.4 && r <= 1.6 && a > 145) {
+        return { tipo: "Rostro Ovalado", icono: "🥚", descripcion: "Proporciones equilibradas, mandíbula redondeada." };
+    }
+    if (r >= 1.0 && r <= 1.2 && a > 155) {
+        return { tipo: "Rostro Redondo", icono: "⚪", descripcion: "Ancho y alto similares. Peinados con volumen arriba ayudan." };
+    }
+    if (r >= 1.0 && r <= 1.2 && a < 130) {
+        return { tipo: "Rostro Cuadrado", icono: "⬛", descripcion: "Mandíbula angular. Cortes en capas suavizan los ángulos." };
+    }
+    if (r > 1.6) {
+        return { tipo: "Rostro Alargado", icono: "📏", descripcion: "Rostro más largo que ancho. Flequillo ayuda a acortar." };
+    }
+    if (r >= 1.3 && r <= 1.5) {
+        if (a < 135) {
+            return { tipo: "Rostro Diamante", icono: "💎", descripcion: "Pómulos anchos. Volumen en parte superior es ideal." };
+        }
+        return { tipo: "Rostro Corazón", icono: "💜", descripcion: "Frente ancha, mentón puntiagudo." };
+    }
+    return { tipo: "Rostro Mixto", icono: "✨", descripcion: "Características únicas. ¡Eres único/a!" };
 }
 
 // ========== DIBUJAR PUNTOS ==========
@@ -98,17 +74,17 @@ function dibujarPuntos(detection) {
     ctx.lineWidth = 2;
     ctx.strokeRect(box.x, box.y, box.width, box.height);
     
-    // Dibujar puntos faciales
+    // Dibujar landmarks
     const landmarks = detection.landmarks;
     for (let i = 0; i < landmarks.length; i++) {
         ctx.beginPath();
-        ctx.arc(landmarks[i].x, landmarks[i].y, 3, 0, 2 * Math.PI);
+        ctx.arc(landmarks[i].x, landmarks[i].y, 2, 0, 2 * Math.PI);
         ctx.fillStyle = '#ff6b6b';
         ctx.fill();
     }
     
     // Puntos clave más grandes
-    const puntosClave = [0, 8, 16, 32, 48];
+    const puntosClave = [0, 8, 16];
     puntosClave.forEach(idx => {
         if (landmarks[idx]) {
             ctx.beginPath();
@@ -119,47 +95,8 @@ function dibujarPuntos(detection) {
     });
 }
 
-// ========== ANALIZAR ROSTRO ==========
-function analizarRostro() {
-    if (!currentDetection) {
-        addDebugLog("No hay detección de rostro disponible", true);
-        alert("⚠️ No se detecta ningún rostro. Asegúrate de mirar directamente a la cámara.");
-        return;
-    }
-    
-    loading.style.display = "block";
-    
-    setTimeout(() => {
-        try {
-            const box = currentDetection.detection.box;
-            const ancho = box.width;
-            const alto = box.height;
-            const relacionAnchoAlto = alto / ancho;
-            
-            const clasificacion = clasificarRostroPorMedidas(ancho, alto, relacionAnchoAlto, currentDetection.landmarks);
-            
-            resultName.textContent = clasificacion.tipo;
-            resultIcon.innerHTML = clasificacion.icono;
-            resultDescription.textContent = clasificacion.descripcion;
-            ratioVal.textContent = relacionAnchoAlto.toFixed(2);
-            angleVal.textContent = "~140°";
-            cheekVal.textContent = clasificacion.tipo.split(" ")[0];
-            
-            addDebugLog(`✅ Análisis completado: ${clasificacion.tipo}`);
-            
-            canvasConfetti({ particleCount: 80, spread: 55, origin: { y: 0.8 } });
-            
-        } catch (error) {
-            addDebugLog(`Error en análisis: ${error.message}`, true);
-            alert("Error al analizar. Intenta de nuevo.");
-        } finally {
-            loading.style.display = "none";
-        }
-    }, 100);
-}
-
 // ========== DETECCIÓN CONTINUA ==========
-async function startDetection() {
+function iniciarDeteccion() {
     if (detectionInterval) clearInterval(detectionInterval);
     
     detectionInterval = setInterval(async () => {
@@ -172,32 +109,64 @@ async function startDetection() {
             if (detections && detections.length > 0) {
                 currentDetection = detections[0];
                 dibujarPuntos(currentDetection);
-                faceStatus.innerHTML = `<i class="fas fa-check-circle"></i> Rostro detectado ✅`;
-                faceStatus.className = "face-status status-ready";
+                faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Rostro detectado ✅';
+                faceStatus.style.background = 'rgba(76,175,80,0.8)';
                 btnAnalyze.disabled = false;
             } else {
-                faceStatus.innerHTML = `<i class="fas fa-eye-slash"></i> No se detecta rostro. ¿Estás mirando a la cámara?`;
-                faceStatus.className = "face-status";
+                faceStatus.innerHTML = '<i class="fas fa-eye-slash"></i> No se detecta rostro. ¿Estás mirando a la cámara?';
+                faceStatus.style.background = 'rgba(0,0,0,0.7)';
                 currentDetection = null;
                 btnAnalyze.disabled = true;
             }
         } catch (error) {
-            addDebugLog(`Error en detección: ${error.message}`, true);
+            console.error(error);
         }
     }, 500);
 }
 
+// ========== ANALIZAR ROSTRO ==========
+function analizarRostro() {
+    if (!currentDetection) {
+        alert("⚠️ No se detecta ningún rostro. Asegúrate de mirar directamente a la cámara.");
+        return;
+    }
+    
+    loading.style.display = "block";
+    
+    setTimeout(() => {
+        try {
+            const box = currentDetection.detection.box;
+            const ancho = box.width;
+            const alto = box.height;
+            const proporcion = (alto / ancho).toFixed(2);
+            
+            const clasificacion = clasificarRostro(proporcion, currentDetection.landmarks);
+            
+            resultName.textContent = clasificacion.tipo;
+            resultIcon.textContent = clasificacion.icono;
+            resultDescription.textContent = clasificacion.descripcion;
+            ratioVal.textContent = proporcion;
+            angleVal.textContent = "~140°";
+            cheekVal.textContent = clasificacion.tipo.split(" ")[0];
+            
+            if (typeof canvasConfetti !== 'undefined') {
+                canvasConfetti({ particleCount: 80, spread: 55, origin: { y: 0.8 } });
+            }
+            
+        } catch (error) {
+            console.error(error);
+            alert("Error al analizar. Intenta de nuevo.");
+        } finally {
+            loading.style.display = "none";
+        }
+    }, 100);
+}
+
 // ========== INICIAR CÁMARA ==========
 async function iniciarCamara() {
-    addDebugLog("Solicitando acceso a la cámara...");
-    
     try {
         stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 640 },
-                height: { ideal: 480 },
-                facingMode: "user"
-            }
+            video: { width: 640, height: 480, facingMode: "user" }
         });
         
         video.srcObject = stream;
@@ -210,53 +179,45 @@ async function iniciarCamara() {
             };
         });
         
-        addDebugLog(`✅ Cámara activada: ${video.videoWidth}x${video.videoHeight}`);
         btnStart.disabled = true;
         btnStart.innerHTML = '<i class="fas fa-check"></i> Cámara activa';
+        faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Iniciando detección...';
         
-        startDetection();
+        iniciarDeteccion();
         
     } catch (error) {
-        addDebugLog(`❌ Error en cámara: ${error.message}`, true);
+        console.error(error);
         alert("No se pudo acceder a la cámara. Verifica los permisos.");
+        faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error de cámara';
     }
 }
 
-// ========== CARGAR MODELOS DE FACE-API ==========
-async function loadModels() {
-    addDebugLog("Cargando modelos de IA...");
+// ========== CARGAR MODELOS ==========
+async function cargarModelos() {
     faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Cargando modelos de IA...';
     
     try {
         const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/models';
         
-        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+        await Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+            faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
+        ]);
         
         modelsLoaded = true;
-        addDebugLog("✅ Modelos cargados correctamente");
         faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Modelos listos. Activa la cámara.';
-        faceStatus.className = "face-status status-ready";
+        faceStatus.style.background = 'rgba(76,175,80,0.8)';
         
     } catch (error) {
-        addDebugLog(`❌ Error cargando modelos: ${error.message}`, true);
+        console.error(error);
         faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error cargando modelos. Recarga la página.';
-        faceStatus.className = "face-status status-error";
+        faceStatus.style.background = 'rgba(244,67,54,0.8)';
     }
 }
-
-// ========== TOGGLE DEBUG ==========
-btnDebug.addEventListener('click', () => {
-    debugPanel.classList.toggle('show');
-    btnDebug.innerHTML = debugPanel.classList.contains('show') 
-        ? '<i class="fas fa-eye-slash"></i> Ocultar debug' 
-        : '<i class="fas fa-bug"></i> Debug';
-});
 
 // ========== EVENTOS ==========
 btnStart.addEventListener('click', iniciarCamara);
 btnAnalyze.addEventListener('click', analizarRostro);
 
 // ========== INICIALIZACIÓN ==========
-loadModels();
-addDebugLog("App iniciada. Esperando carga de modelos...");
+cargarModelos();
