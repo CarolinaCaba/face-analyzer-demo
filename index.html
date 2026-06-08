@@ -4,9 +4,217 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>FaceAnalyzer · Tu tipo de rostro</title>
-    <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 12px;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.85);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .camera-panel {
+            background: white;
+            border-radius: 32px;
+            padding: 24px;
+            box-shadow: 0 20px 40px -12px rgba(0,0,0,0.3);
+        }
+
+        .video-wrapper {
+            position: relative;
+            border-radius: 24px;
+            overflow: hidden;
+            background: #1a1a2e;
+            aspect-ratio: 4 / 3;
+        }
+
+        #webcam {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .face-status {
+            background: rgba(0,0,0,0.7);
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-top: 12px;
+            text-align: center;
+            color: white;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .btn-primary, .btn-secondary {
+            padding: 12px 28px;
+            border-radius: 60px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #e5e7eb;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            margin-top: 15px;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .results-panel {
+            background: white;
+            border-radius: 32px;
+            padding: 28px;
+            box-shadow: 0 20px 40px -12px rgba(0,0,0,0.3);
+        }
+
+        .results-panel h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #1f2937;
+        }
+
+        .result-card {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border-radius: 28px;
+            padding: 32px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .result-icon {
+            font-size: 4rem;
+            margin-bottom: 12px;
+        }
+
+        .result-name {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .result-description {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+
+        .metrics {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .metric span {
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+
+        .metric strong {
+            font-size: 1rem;
+            color: #1f2937;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            header h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -33,7 +241,7 @@
                     <i class="fas fa-chart-line"></i> Analizar mi rostro
                 </button>
             </div>
-            <div class="loading" id="loading" style="display: none;">
+            <div id="loading" class="loading" style="display: none;">
                 <i class="fas fa-spinner fa-pulse"></i> Analizando...
             </div>
         </div>
@@ -65,9 +273,221 @@
     </div>
 </div>
 
-<!-- Face-api.js CDN -->
+<!-- Librerías -->
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
-<script src="script.js"></script>
+
+<script>
+    // ========== ESPERAR A QUE TODO EL HTML ESTÉ CARGADO ==========
+    (function() {
+        
+        // Obtener elementos
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('overlayCanvas');
+        const ctx = canvas.getContext('2d');
+        const btnStart = document.getElementById('btnStart');
+        const btnAnalyze = document.getElementById('btnAnalyze');
+        const loadingDiv = document.getElementById('loading');
+        const faceStatus = document.getElementById('faceStatus');
+        const resultName = document.getElementById('resultName');
+        const resultIcon = document.getElementById('resultIcon');
+        const resultDescription = document.getElementById('resultDescription');
+        const ratioVal = document.getElementById('ratioVal');
+        const angleVal = document.getElementById('angleVal');
+        const cheekVal = document.getElementById('cheekVal');
+
+        // Verificar que los elementos existan
+        if (!btnStart || !btnAnalyze || !video || !canvas) {
+            console.error("Error crítico: Elementos no encontrados");
+            if (faceStatus) faceStatus.innerHTML = 'Error: Recarga la página';
+            return;
+        }
+
+        // Variables
+        let stream = null;
+        let detectionInterval = null;
+        let currentDetection = null;
+
+        // ========== FUNCIONES DE CLASIFICACIÓN ==========
+        function calcularAngulo(p1, p2, p3) {
+            const v1 = { x: p1.x - p2.x, y: p1.y - p2.y };
+            const v2 = { x: p3.x - p2.x, y: p3.y - p2.y };
+            const dot = v1.x * v2.x + v1.y * v2.y;
+            const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+            const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+            if (mag1 === 0 || mag2 === 0) return 140;
+            const rad = Math.acos(Math.min(1, Math.max(-1, dot / (mag1 * mag2))));
+            return rad * 180 / Math.PI;
+        }
+
+        function clasificarRostro(ratioAnchoAlto, puntos) {
+            let angulo = 140;
+            if (puntos && puntos.length > 0 && puntos[8] && puntos[0] && puntos[16]) {
+                angulo = calcularAngulo(puntos[0], puntos[8], puntos[16]);
+            }
+            
+            const r = parseFloat(ratioAnchoAlto);
+            
+            if (r >= 1.4 && r <= 1.6 && angulo > 145) {
+                return { tipo: "Rostro Ovalado", icono: "🥚", descripcion: "Proporciones equilibradas, mandíbula redondeada." };
+            }
+            if (r >= 1.0 && r <= 1.2 && angulo > 155) {
+                return { tipo: "Rostro Redondo", icono: "⚪", descripcion: "Ancho y alto similares. Peinados con volumen arriba ayudan." };
+            }
+            if (r >= 1.0 && r <= 1.2 && angulo < 130) {
+                return { tipo: "Rostro Cuadrado", icono: "⬛", descripcion: "Mandíbula angular. Cortes en capas suavizan los ángulos." };
+            }
+            if (r > 1.6) {
+                return { tipo: "Rostro Alargado", icono: "📏", descripcion: "Rostro más largo que ancho. Flequillo ayuda a acortar." };
+            }
+            if (r >= 1.3 && r <= 1.5) {
+                if (angulo < 135) {
+                    return { tipo: "Rostro Diamante", icono: "💎", descripcion: "Pómulos anchos. Volumen en parte superior es ideal." };
+                }
+                return { tipo: "Rostro Corazón", icono: "💜", descripcion: "Frente ancha, mentón puntiagudo." };
+            }
+            return { tipo: "Rostro Mixto", icono: "✨", descripcion: "Características únicas. ¡Eres único/a!" };
+        }
+
+        // ========== DIBUJAR PUNTOS ==========
+        function dibujarPuntos(detection) {
+            if (!detection || !detection.landmarks) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const box = detection.detection.box;
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
+            
+            const landmarks = detection.landmarks;
+            for (let i = 0; i < landmarks.length; i++) {
+                ctx.beginPath();
+                ctx.arc(landmarks[i].x, landmarks[i].y, 2, 0, 2 * Math.PI);
+                ctx.fillStyle = '#ff6b6b';
+                ctx.fill();
+            }
+        }
+
+        // ========== DETECCIÓN ==========
+        function iniciarDeteccion() {
+            if (detectionInterval) clearInterval(detectionInterval);
+            
+            detectionInterval = setInterval(async () => {
+                if (!video.videoWidth || !video.videoHeight) return;
+                if (typeof faceapi === 'undefined') return;
+                
+                try {
+                    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                        .withFaceLandmarks();
+                    
+                    if (detections && detections.length > 0) {
+                        currentDetection = detections[0];
+                        dibujarPuntos(currentDetection);
+                        faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Rostro detectado ✅';
+                        faceStatus.style.background = 'rgba(76,175,80,0.8)';
+                        btnAnalyze.disabled = false;
+                    } else {
+                        faceStatus.innerHTML = '<i class="fas fa-eye-slash"></i> No se detecta rostro';
+                        faceStatus.style.background = 'rgba(0,0,0,0.7)';
+                        currentDetection = null;
+                        btnAnalyze.disabled = true;
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            }, 500);
+        }
+
+        // ========== ANALIZAR ==========
+        function analizarRostro() {
+            if (!currentDetection) {
+                alert("No se detecta ningún rostro");
+                return;
+            }
+            
+            loadingDiv.style.display = "block";
+            
+            setTimeout(() => {
+                try {
+                    const box = currentDetection.detection.box;
+                    const proporcion = (box.height / box.width).toFixed(2);
+                    const clasificacion = clasificarRostro(proporcion, currentDetection.landmarks);
+                    
+                    resultName.textContent = clasificacion.tipo;
+                    resultIcon.textContent = clasificacion.icono;
+                    resultDescription.textContent = clasificacion.descripcion;
+                    ratioVal.textContent = proporcion;
+                    angleVal.textContent = "~140°";
+                    cheekVal.textContent = clasificacion.tipo.split(" ")[0];
+                    
+                    canvasConfetti({ particleCount: 80, spread: 55, origin: { y: 0.8 } });
+                } catch (error) {
+                    console.error(error);
+                    alert("Error al analizar");
+                } finally {
+                    loadingDiv.style.display = "none";
+                }
+            }, 100);
+        }
+
+        // ========== CÁMARA ==========
+        async function iniciarCamara() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: "user" }
+                });
+                
+                video.srcObject = stream;
+                
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        resolve();
+                    };
+                });
+                
+                btnStart.disabled = true;
+                btnStart.innerHTML = '<i class="fas fa-check"></i> Cámara activa';
+                faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Iniciando detección...';
+                iniciarDeteccion();
+                
+            } catch (error) {
+                console.error(error);
+                alert("No se pudo acceder a la cámara");
+                faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error de cámara';
+            }
+        }
+
+        // ========== CARGAR MODELOS ==========
+        async function cargarModelos() {
+            faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Cargando modelos...';
+            
+            try {
+                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/models';
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
+                ]);
+                
+                faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Modelos listos. Activa la cámara.';
+                faceStatus.style.background = 'rgba(76,175,80,0.8)';
+            } catch (error) {
+                console.error(error);
+                faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error cargando modelos. Recarga.';
+                faceStatus.style.background = 'rgba(244,67,54,0.8)';
+            }
+        }
+
+        // ========== EVENTOS ==========
+        btnStart.addEventListener('click', iniciarCamara);
+        btnAnalyze.addEventListener('click', analizarRostro);
+
+        // ========== INICIAR ==========
+        cargarModelos();
+
+    })();
+</script>
 </body>
 </html>
