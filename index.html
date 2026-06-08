@@ -97,6 +97,7 @@
             gap: 15px;
             margin-top: 20px;
             justify-content: center;
+            flex-wrap: wrap;
         }
 
         .btn-primary, .btn-secondary {
@@ -117,9 +118,14 @@
             color: white;
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             background: #5a67d8;
             transform: translateY(-2px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .btn-secondary {
@@ -234,7 +240,7 @@
                 <i class="fas fa-spinner fa-pulse"></i> Cargando modelos...
             </div>
             <div class="controls">
-                <button id="btnStart" class="btn-primary">
+                <button id="btnStart" class="btn-primary" disabled>
                     <i class="fas fa-camera"></i> Activar cámara
                 </button>
                 <button id="btnAnalyze" class="btn-secondary" disabled>
@@ -252,7 +258,7 @@
                 <div class="result-icon" id="resultIcon">✨</div>
                 <div class="result-name" id="resultName">--</div>
                 <div class="result-description" id="resultDescription">
-                    Activa la cámara y presiona "Analizar"
+                    Esperando activar cámara...
                 </div>
             </div>
             <div class="metrics">
@@ -273,15 +279,13 @@
     </div>
 </div>
 
-<!-- Librerías -->
+<!-- Face-api.js desde CDN alternativo -->
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
 
 <script>
-    // ========== ESPERAR A QUE TODO EL HTML ESTÉ CARGADO ==========
     (function() {
-        
-        // Obtener elementos
+        // Elementos DOM
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('overlayCanvas');
         const ctx = canvas.getContext('2d');
@@ -296,19 +300,12 @@
         const angleVal = document.getElementById('angleVal');
         const cheekVal = document.getElementById('cheekVal');
 
-        // Verificar que los elementos existan
-        if (!btnStart || !btnAnalyze || !video || !canvas) {
-            console.error("Error crítico: Elementos no encontrados");
-            if (faceStatus) faceStatus.innerHTML = 'Error: Recarga la página';
-            return;
-        }
-
-        // Variables
         let stream = null;
         let detectionInterval = null;
         let currentDetection = null;
+        let modelsReady = false;
 
-        // ========== FUNCIONES DE CLASIFICACIÓN ==========
+        // Clasificación
         function calcularAngulo(p1, p2, p3) {
             const v1 = { x: p1.x - p2.x, y: p1.y - p2.y };
             const v2 = { x: p3.x - p2.x, y: p3.y - p2.y };
@@ -322,37 +319,35 @@
 
         function clasificarRostro(ratioAnchoAlto, puntos) {
             let angulo = 140;
-            if (puntos && puntos.length > 0 && puntos[8] && puntos[0] && puntos[16]) {
+            if (puntos && puntos.length > 0 && puntos[8]) {
                 angulo = calcularAngulo(puntos[0], puntos[8], puntos[16]);
             }
-            
             const r = parseFloat(ratioAnchoAlto);
             
             if (r >= 1.4 && r <= 1.6 && angulo > 145) {
-                return { tipo: "Rostro Ovalado", icono: "🥚", descripcion: "Proporciones equilibradas, mandíbula redondeada." };
+                return { tipo: "Rostro Ovalado", icono: "🥚", descripcion: "Proporciones equilibradas, mandíbula redondeada. Versátil para cualquier estilo." };
             }
             if (r >= 1.0 && r <= 1.2 && angulo > 155) {
-                return { tipo: "Rostro Redondo", icono: "⚪", descripcion: "Ancho y alto similares. Peinados con volumen arriba ayudan." };
+                return { tipo: "Rostro Redondo", icono: "⚪", descripcion: "Ancho y alto similares. Peinados con volumen arriba ayudan a estilizar." };
             }
             if (r >= 1.0 && r <= 1.2 && angulo < 130) {
                 return { tipo: "Rostro Cuadrado", icono: "⬛", descripcion: "Mandíbula angular. Cortes en capas suavizan los ángulos." };
             }
             if (r > 1.6) {
-                return { tipo: "Rostro Alargado", icono: "📏", descripcion: "Rostro más largo que ancho. Flequillo ayuda a acortar." };
+                return { tipo: "Rostro Alargado", icono: "📏", descripcion: "Rostro más largo que ancho. Flequillo ayuda a acortar visualmente." };
             }
             if (r >= 1.3 && r <= 1.5) {
                 if (angulo < 135) {
-                    return { tipo: "Rostro Diamante", icono: "💎", descripcion: "Pómulos anchos. Volumen en parte superior es ideal." };
+                    return { tipo: "Rostro Diamante", icono: "💎", descripcion: "Pómulos anchos, frente y mentón estrechos. Volumen en parte superior es ideal." };
                 }
-                return { tipo: "Rostro Corazón", icono: "💜", descripcion: "Frente ancha, mentón puntiagudo." };
+                return { tipo: "Rostro Corazón", icono: "💜", descripcion: "Frente ancha, mentón puntiagudo. Busca equilibrio con volumen en la parte inferior." };
             }
             return { tipo: "Rostro Mixto", icono: "✨", descripcion: "Características únicas. ¡Eres único/a!" };
         }
 
-        // ========== DIBUJAR PUNTOS ==========
+        // Dibujo
         function dibujarPuntos(detection) {
             if (!detection || !detection.landmarks) return;
-            
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             const box = detection.detection.box;
@@ -369,12 +364,11 @@
             }
         }
 
-        // ========== DETECCIÓN ==========
+        // Detección continua
         function iniciarDeteccion() {
             if (detectionInterval) clearInterval(detectionInterval);
-            
             detectionInterval = setInterval(async () => {
-                if (!video.videoWidth || !video.videoHeight) return;
+                if (!video.videoWidth || !video.videoHeight || !modelsReady) return;
                 if (typeof faceapi === 'undefined') return;
                 
                 try {
@@ -388,7 +382,7 @@
                         faceStatus.style.background = 'rgba(76,175,80,0.8)';
                         btnAnalyze.disabled = false;
                     } else {
-                        faceStatus.innerHTML = '<i class="fas fa-eye-slash"></i> No se detecta rostro';
+                        faceStatus.innerHTML = '<i class="fas fa-eye-slash"></i> No se detecta rostro. ¿Estás mirando a la cámara?';
                         faceStatus.style.background = 'rgba(0,0,0,0.7)';
                         currentDetection = null;
                         btnAnalyze.disabled = true;
@@ -399,13 +393,12 @@
             }, 500);
         }
 
-        // ========== ANALIZAR ==========
+        // Análisis
         function analizarRostro() {
             if (!currentDetection) {
-                alert("No se detecta ningún rostro");
+                alert("No se detecta ningún rostro. Asegúrate de mirar a la cámara.");
                 return;
             }
-            
             loadingDiv.style.display = "block";
             
             setTimeout(() => {
@@ -424,20 +417,19 @@
                     canvasConfetti({ particleCount: 80, spread: 55, origin: { y: 0.8 } });
                 } catch (error) {
                     console.error(error);
-                    alert("Error al analizar");
+                    alert("Error al analizar. Intenta de nuevo.");
                 } finally {
                     loadingDiv.style.display = "none";
                 }
             }, 100);
         }
 
-        // ========== CÁMARA ==========
+        // Cámara
         async function iniciarCamara() {
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: { width: 640, height: 480, facingMode: "user" }
                 });
-                
                 video.srcObject = stream;
                 
                 await new Promise((resolve) => {
@@ -452,41 +444,40 @@
                 btnStart.innerHTML = '<i class="fas fa-check"></i> Cámara activa';
                 faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Iniciando detección...';
                 iniciarDeteccion();
-                
             } catch (error) {
                 console.error(error);
-                alert("No se pudo acceder a la cámara");
+                alert("No se pudo acceder a la cámara. Verifica los permisos.");
                 faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error de cámara';
-            }
-        }
-
-        // ========== CARGAR MODELOS ==========
-        async function cargarModelos() {
-            faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Cargando modelos...';
-            
-            try {
-                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/models';
-                await Promise.all([
-                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
-                ]);
-                
-                faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Modelos listos. Activa la cámara.';
-                faceStatus.style.background = 'rgba(76,175,80,0.8)';
-            } catch (error) {
-                console.error(error);
-                faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error cargando modelos. Recarga.';
                 faceStatus.style.background = 'rgba(244,67,54,0.8)';
             }
         }
 
-        // ========== EVENTOS ==========
+        // Cargar modelos - usando CDN alternativa con archivos JSON correctos
+        async function cargarModelos() {
+            faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Cargando modelos de IA...';
+            
+            try {
+                // Usar CDN alternativa de face-api.js que sí funciona
+                await faceapi.nets.tinyFaceDetector.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights');
+                await faceapi.nets.faceLandmark68Net.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights');
+                
+                modelsReady = true;
+                faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Modelos listos. Activa la cámara.';
+                faceStatus.style.background = 'rgba(76,175,80,0.8)';
+                btnStart.disabled = false;
+            } catch (error) {
+                console.error("Error cargando modelos:", error);
+                faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error cargando modelos. Recarga la página.';
+                faceStatus.style.background = 'rgba(244,67,54,0.8)';
+            }
+        }
+
+        // Eventos
         btnStart.addEventListener('click', iniciarCamara);
         btnAnalyze.addEventListener('click', analizarRostro);
-
-        // ========== INICIAR ==========
+        
+        // Iniciar carga de modelos
         cargarModelos();
-
     })();
 </script>
 </body>
