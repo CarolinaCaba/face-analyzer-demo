@@ -227,7 +227,7 @@
 <div class="container">
     <header>
         <h1>✨ FaceAnalyzer ✨</h1>
-        <p>Descubre tu tipo de rostro con inteligencia artificial</p>
+        <p>Descubre tu tipo de rostro</p>
     </header>
 
     <div class="main-content">
@@ -253,7 +253,7 @@
         </div>
 
         <div class="results-panel">
-            <h2>Tu tipo de rostro</h2>
+            <h2>Resultado</h2>
             <div class="result-card">
                 <div class="result-icon" id="resultIcon">✨</div>
                 <div class="result-name" id="resultName">--</div>
@@ -284,7 +284,7 @@
         // Elementos DOM
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('overlayCanvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true }); // Optimización
+        const ctx = canvas.getContext('2d');
         const btnStart = document.getElementById('btnStart');
         const btnAnalyze = document.getElementById('btnAnalyze');
         const loadingDiv = document.getElementById('loading');
@@ -298,36 +298,6 @@
         let currentDetection = null;
         let tracker = null;
         let stream = null;
-
-        // Función de confeti manual (sin dependencia externa)
-        function lanzarConfeti() {
-            const colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b'];
-            
-            for (let i = 0; i < 80; i++) {
-                const confetti = document.createElement('div');
-                confetti.style.position = 'fixed';
-                confetti.style.width = '8px';
-                confetti.style.height = '8px';
-                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                confetti.style.left = Math.random() * window.innerWidth + 'px';
-                confetti.style.top = '-10px';
-                confetti.style.borderRadius = '50%';
-                confetti.style.pointerEvents = 'none';
-                confetti.style.zIndex = '9999';
-                confetti.style.opacity = '0.8';
-                document.body.appendChild(confetti);
-                
-                const animation = confetti.animate([
-                    { transform: 'translateY(0) rotate(0deg)', opacity: 0.8 },
-                    { transform: `translateY(${window.innerHeight}px) rotate(${Math.random() * 360}deg)`, opacity: 0 }
-                ], {
-                    duration: 1500 + Math.random() * 1000,
-                    easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                });
-                
-                animation.onfinish = () => confetti.remove();
-            }
-        }
 
         // Clasificación de rostro
         function clasificarRostro(proporcion) {
@@ -364,7 +334,7 @@
             return { 
                 tipo: "Rostro Mixto", 
                 icono: "✨", 
-                descripcion: "Combinación de características únicas. ¡Eres único/a! Consulta con un estilista." 
+                descripcion: "Combinación de características únicas. ¡Eres único/a!" 
             };
         }
 
@@ -373,7 +343,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             if (!rects || rects.length === 0) {
-                faceStatus.innerHTML = '<i class="fas fa-eye-slash"></i> No se detecta rostro. ¿Estás mirando a la cámara?';
+                faceStatus.innerHTML = '<i class="fas fa-eye-slash"></i> No se detecta rostro';
                 faceStatus.style.background = 'rgba(0,0,0,0.7)';
                 btnAnalyze.disabled = true;
                 currentDetection = null;
@@ -391,12 +361,12 @@
             // Mostrar proporción
             ctx.font = 'bold 14px Inter';
             ctx.fillStyle = '#667eea';
-            ctx.fillText(`Proporción: ${proporcion}`, rect.x + 5, rect.y + 25);
+            ctx.fillText(`${proporcion}`, rect.x + 5, rect.y + 25);
             
             // Guardar detección actual
             currentDetection = { proporcion: proporcion, rect: rect };
             
-            faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Rostro detectado ✅';
+            faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Rostro detectado';
             faceStatus.style.background = 'rgba(76,175,80,0.8)';
             btnAnalyze.disabled = false;
         }
@@ -404,7 +374,7 @@
         // Analizar rostro
         function analizarRostro() {
             if (!currentDetection) {
-                alert("No se detecta ningún rostro. Asegúrate de mirar directamente a la cámara.");
+                alert("No se detecta ningún rostro.");
                 return;
             }
             
@@ -421,11 +391,9 @@
                     ratioVal.textContent = proporcion;
                     cheekVal.textContent = clasificacion.tipo.split(" ")[0];
                     
-                    lanzarConfeti();
-                    
                 } catch (error) {
                     console.error("Error:", error);
-                    alert("Error al analizar. Intenta de nuevo.");
+                    alert("Error al analizar.");
                 } finally {
                     loadingDiv.style.display = "none";
                 }
@@ -472,7 +440,7 @@
                 
             } catch (error) {
                 console.error("Error:", error);
-                alert("No se pudo acceder a la cámara. Verifica los permisos.");
+                alert("No se pudo acceder a la cámara.");
                 faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error de cámara';
                 faceStatus.style.background = 'rgba(244,67,54,0.8)';
             }
