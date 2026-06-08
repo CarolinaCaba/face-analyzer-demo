@@ -186,6 +186,7 @@
         .result-description {
             font-size: 0.85rem;
             color: #6b7280;
+            line-height: 1.4;
         }
 
         .metrics {
@@ -210,6 +211,22 @@
         .metric strong {
             font-size: 1rem;
             color: #1f2937;
+            font-family: monospace;
+        }
+
+        .debug-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #666;
+            text-align: center;
+            display: none;
+        }
+
+        .debug-info.show {
+            display: block;
         }
 
         @media (max-width: 900px) {
@@ -250,6 +267,9 @@
             <div id="loading" class="loading" style="display: none;">
                 <i class="fas fa-spinner fa-pulse"></i> Analizando...
             </div>
+            <div id="debugInfo" class="debug-info">
+                <i class="fas fa-bug"></i> Modo diagnóstico activado
+            </div>
         </div>
 
         <div class="results-panel">
@@ -263,12 +283,16 @@
             </div>
             <div class="metrics">
                 <div class="metric">
-                    <span>Proporción ancho/alto</span>
+                    <span>Proporción (alto/ancho)</span>
                     <strong id="ratioVal">--</strong>
                 </div>
                 <div class="metric">
-                    <span>Tipo detectado</span>
-                    <strong id="cheekVal">--</strong>
+                    <span>Ancho rostro (px)</span>
+                    <strong id="widthVal">--</strong>
+                </div>
+                <div class="metric">
+                    <span>Alto rostro (px)</span>
+                    <strong id="heightVal">--</strong>
                 </div>
             </div>
         </div>
@@ -293,16 +317,25 @@
         const resultIcon = document.getElementById('resultIcon');
         const resultDescription = document.getElementById('resultDescription');
         const ratioVal = document.getElementById('ratioVal');
-        const cheekVal = document.getElementById('cheekVal');
+        const widthVal = document.getElementById('widthVal');
+        const heightVal = document.getElementById('heightVal');
+        const debugInfo = document.getElementById('debugInfo');
 
         let currentDetection = null;
         let tracker = null;
         let stream = null;
 
-        // Clasificación de rostro
+        // Clasificación de rostro corregida (basada en proporción realista)
+        // Valores ajustados para una detección más precisa
         function clasificarRostro(proporcion) {
             const r = parseFloat(proporcion);
             
+            // Mostrar debug
+            debugInfo.classList.add('show');
+            debugInfo.innerHTML = `<i class="fas fa-bug"></i> Proporción detectada: ${r} | Clasificando...`;
+            
+            // Clasificación según estándares de belleza
+            // Rostro Ovalado: proporción entre 1.35 y 1.55
             if (r >= 1.35 && r <= 1.55) {
                 return { 
                     tipo: "Rostro Ovalado", 
@@ -310,20 +343,15 @@
                     descripcion: "Proporciones equilibradas. Es el tipo más versátil para cualquier estilo de peinado y gafas." 
                 };
             }
-            if (r >= 1.0 && r <= 1.2) {
+            // Rostro Redondo: proporción cercana a 1.0-1.2
+            if (r >= 0.95 && r <= 1.2) {
                 return { 
                     tipo: "Rostro Redondo", 
                     icono: "⚪", 
                     descripcion: "Ancho y alto similares. Los peinados con volumen en la parte superior ayudan a estilizar." 
                 };
             }
-            if (r > 1.6) {
-                return { 
-                    tipo: "Rostro Alargado", 
-                    icono: "📏", 
-                    descripcion: "Rostro más largo que ancho. El flequillo y los cortes en capas ayudan a acortar visualmente." 
-                };
-            }
+            // Rostro Cuadrado: proporción entre 1.2 y 1.35
             if (r >= 1.2 && r <= 1.35) {
                 return { 
                     tipo: "Rostro Cuadrado", 
@@ -331,10 +359,26 @@
                     descripcion: "Mandíbula angular y marcada. Los cortes en capas y el volumen en la parte superior suavizan los ángulos." 
                 };
             }
+            // Rostro Alargado: proporción mayor a 1.55
+            if (r > 1.55) {
+                return { 
+                    tipo: "Rostro Alargado", 
+                    icono: "📏", 
+                    descripcion: "Rostro más largo que ancho. El flequillo y los cortes en capas ayudan a acortar visualmente." 
+                };
+            }
+            // Rostro Corazón o Diamante (proporción media)
+            if (r >= 1.2 && r <= 1.4) {
+                return { 
+                    tipo: "Rostro Corazón", 
+                    icono: "💜", 
+                    descripcion: "Frente más ancha que la mandíbula. Los peinados con volumen en la parte inferior equilibran." 
+                };
+            }
             return { 
                 tipo: "Rostro Mixto", 
                 icono: "✨", 
-                descripcion: "Combinación de características únicas. ¡Eres único/a!" 
+                descripcion: "Combinación de características únicas. ¡Consulta con un estilista para un análisis más detallado!" 
             };
         }
 
@@ -347,11 +391,12 @@
                 faceStatus.style.background = 'rgba(0,0,0,0.7)';
                 btnAnalyze.disabled = true;
                 currentDetection = null;
+                debugInfo.classList.remove('show');
                 return;
             }
             
             const rect = rects[0];
-            const proporcion = (rect.height / rect.width).toFixed(2);
+            const proporcion = (rect.height / rect.width).toFixed(3);
             
             // Dibujar rectángulo
             ctx.strokeStyle = '#667eea';
@@ -361,14 +406,29 @@
             // Mostrar proporción
             ctx.font = 'bold 14px Inter';
             ctx.fillStyle = '#667eea';
-            ctx.fillText(`${proporcion}`, rect.x + 5, rect.y + 25);
+            ctx.fillText(`Proporción: ${proporcion}`, rect.x + 5, rect.y + 25);
+            
+            // Mostrar dimensiones
+            ctx.font = '12px Inter';
+            ctx.fillStyle = '#888';
+            ctx.fillText(`Ancho: ${rect.width}px`, rect.x + 5, rect.y + 45);
+            ctx.fillText(`Alto: ${rect.height}px`, rect.x + 5, rect.y + 65);
             
             // Guardar detección actual
-            currentDetection = { proporcion: proporcion, rect: rect };
+            currentDetection = { 
+                proporcion: proporcion, 
+                rect: rect,
+                width: rect.width,
+                height: rect.height
+            };
             
             faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Rostro detectado';
             faceStatus.style.background = 'rgba(76,175,80,0.8)';
             btnAnalyze.disabled = false;
+            
+            // Mostrar diagnóstico
+            debugInfo.classList.add('show');
+            debugInfo.innerHTML = `<i class="fas fa-bug"></i> 📊 Proporción: ${proporcion} | Ancho: ${rect.width}px | Alto: ${rect.height}px`;
         }
 
         // Analizar rostro
@@ -389,7 +449,10 @@
                     resultIcon.textContent = clasificacion.icono;
                     resultDescription.textContent = clasificacion.descripcion;
                     ratioVal.textContent = proporcion;
-                    cheekVal.textContent = clasificacion.tipo.split(" ")[0];
+                    widthVal.textContent = currentDetection.width + ' px';
+                    heightVal.textContent = currentDetection.height + ' px';
+                    
+                    debugInfo.innerHTML = `<i class="fas fa-bug"></i> ✅ Análisis completado: ${clasificacion.tipo} (proporción: ${proporcion})`;
                     
                 } catch (error) {
                     console.error("Error:", error);
