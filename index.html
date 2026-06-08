@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>FaceAnalyzer · Tu tipo de rostro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 12px;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.85);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .camera-panel {
+            background: white;
+            border-radius: 32px;
+            padding: 24px;
+            box-shadow: 0 20px 40px -12px rgba(0,0,0,0.3);
+        }
+
+        .video-wrapper {
+            position: relative;
+            border-radius: 24px;
+            overflow: hidden;
+            background: #1a1a2e;
+            aspect-ratio: 4 / 3;
+        }
+
+        #webcam {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .face-status {
+            background: rgba(0,0,0,0.7);
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-top: 12px;
+            text-align: center;
+            color: white;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary, .btn-secondary {
+            padding: 12px 28px;
+            border-radius: 60px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #e5e7eb;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            margin-top: 15px;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .results-panel {
+            background: white;
+            border-radius: 32px;
+            padding: 28px;
+            box-shadow: 0 20px 40px -12px rgba(0,0,0,0.3);
+        }
+
+        .results-panel h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #1f2937;
+        }
+
+        .result-card {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border-radius: 28px;
+            padding: 32px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .result-icon {
+            font-size: 4rem;
+            margin-bottom: 12px;
+        }
+
+        .result-name {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .result-description {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+
+        .metrics {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .metric span {
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+
+        .metric strong {
+            font-size: 1rem;
+            color: #1f2937;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            header h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>✨ FaceAnalyzer ✨</h1>
+        <p>Descubre tu tipo de rostro con inteligencia artificial</p>
+    </header>
+
+    <div class="main-content">
+        <div class="camera-panel">
+            <div class="video-wrapper">
+                <video id="webcam" autoplay playsinline muted></video>
+                <canvas id="overlayCanvas"></canvas>
+            </div>
+            <div id="faceStatus" class="face-status">
+                <i class="fas fa-spinner fa-pulse"></i> Cargando modelos...
+            </div>
+            <div class="controls">
+                <button id="btnStart" class="btn-primary" disabled>
+                    <i class="fas fa-camera"></i> Activar cámara
+                </button>
+                <button id="btnAnalyze" class="btn-secondary" disabled>
+                    <i class="fas fa-chart-line"></i> Analizar mi rostro
+                </button>
+            </div>
+            <div id="loading" class="loading" style="display: none;">
+                <i class="fas fa-spinner fa-pulse"></i> Analizando...
+            </div>
+        </div>
+
+        <div class="results-panel">
+            <h2>Tu tipo de rostro</h2>
+            <div class="result-card">
+                <div class="result-icon" id="resultIcon">✨</div>
+                <div class="result-name" id="resultName">--</div>
+                <div class="result-description" id="resultDescription">
+                    Esperando activar cámara...
+                </div>
+            </div>
+            <div class="metrics">
+                <div class="metric">
+                    <span>Proporción ancho/alto</span>
+                    <strong id="ratioVal">--</strong>
+                </div>
+                <div class="metric">
+                    <span>Tipo detectado</span>
+                    <strong id="cheekVal">--</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MediaPipe Face Detection (más ligero y con CDN confiable) -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
+
+<script>
+    (function() {
+        // Elementos DOM
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('overlayCanvas');
+        const ctx = canvas.getContext('2d');
+        const btnStart = document.getElementById('btnStart');
+        const btnAnalyze = document.getElementById('btnAnalyze');
+        const loadingDiv = document.getElementById('loading');
+        const faceStatus = document.getElementById('faceStatus');
+        const resultName = document.getElementById('resultName');
+        const resultIcon = document.getElementById('resultIcon');
+        const resultDescription = document.getElementById('resultDescription');
+        const ratioVal = document.getElementById('ratioVal');
+        const cheekVal = document.getElementById('cheekVal');
+
+        let faceDetection = null;
+        let stream = null;
+        let currentDetection = null;
+        let modelsReady = false;
+        let lastDetection = null;
+
+        // Clasificación de rostro basada en proporción ancho/alto
+        function clasificarRostro(proporcion) {
+            const r = parseFloat(proporcion);
+            
+            if (r >= 1.35 && r <= 1.55) {
+                return { tipo: "Rostro Ovalado", icono: "🥚", descripcion: "Proporciones equilibradas. Es el tipo más versátil para cualquier estilo de peinado y gafas." };
+            }
+            if (r >= 1.0 && r <= 1.2) {
+                return { tipo: "Rostro Redondo", icono: "⚪", descripcion: "Ancho y alto similares. Los peinados con volumen en la parte superior ayudan a estilizar." };
+            }
+            if (r > 1.6) {
+                return { tipo: "Rostro Alargado", icono: "📏", descripcion: "Rostro más largo que ancho. El flequillo y los cortes en capas ayudan a acortar visualmente." };
+            }
+            if (r >= 1.2 && r <= 1.35) {
+                return { tipo: "Rostro Cuadrado", icono: "⬛", descripcion: "Mandíbula angular y marcada. Los cortes en capas y el volumen en la parte superior suavizan los ángulos." };
+            }
+            return { tipo: "Rostro Mixto", icono: "✨", descripcion: "Combinación de características únicas. ¡Eres único/a! Consulta con un estilista para un análisis más detallado." };
+        }
+
+        // Dibujar bounding box
+        function dibujarDeteccion(detections) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (!detections || detections.length === 0) return;
+            
+            const detection = detections[0];
+            const box = detection.boundingBox;
+            
+            // Dibujar rectángulo
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(box.xMin, box.yMin, box.width, box.height);
+            
+            // Calcular proporción
+            const proporcion = (box.height / box.width).toFixed(2);
+            
+            // Mostrar proporción
+            ctx.font = 'bold 16px Inter';
+            ctx.fillStyle = '#667eea';
+            ctx.fillText(`Proporción: ${proporcion}`, box.xMin, box.yMin - 8);
+            
+            return { proporcion, box };
+        }
+
+        // Procesar resultados de MediaPipe
+        function onResults(results) {
+            if (!results || !results.detections || results.detections.length === 0) {
+                if (faceStatus) {
+                    faceStatus.innerHTML = '<i class="fas fa-eye-slash"></i> No se detecta rostro. ¿Estás mirando a la cámara?';
+                    faceStatus.style.background = 'rgba(0,0,0,0.7)';
+                }
+                btnAnalyze.disabled = true;
+                currentDetection = null;
+                return;
+            }
+            
+            currentDetection = results.detections[0];
+            const resultado = dibujarDeteccion(results.detections);
+            
+            if (resultado) {
+                faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Rostro detectado ✅';
+                faceStatus.style.background = 'rgba(76,175,80,0.8)';
+                btnAnalyze.disabled = false;
+                
+                // Guardar proporción para análisis
+                lastDetection = resultado;
+            }
+        }
+
+        // Configurar MediaPipe Face Detection
+        async function initMediaPipe() {
+            faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Cargando modelos de IA...';
+            
+            try {
+                faceDetection = new FaceDetection({
+                    locateFile: (file) => {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
+                    }
+                });
+                
+                faceDetection.setOptions({
+                    model: 'short',
+                    minDetectionConfidence: 0.5
+                });
+                
+                faceDetection.onResults(onResults);
+                
+                modelsReady = true;
+                faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Modelos listos. Activa la cámara.';
+                faceStatus.style.background = 'rgba(76,175,80,0.8)';
+                btnStart.disabled = false;
+                
+            } catch (error) {
+                console.error("Error cargando MediaPipe:", error);
+                faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error cargando modelos. Recarga la página.';
+                faceStatus.style.background = 'rgba(244,67,54,0.8)';
+            }
+        }
+
+        // Analizar rostro
+        function analizarRostro() {
+            if (!lastDetection) {
+                alert("No se detecta ningún rostro. Asegúrate de mirar directamente a la cámara.");
+                return;
+            }
+            
+            loadingDiv.style.display = "block";
+            
+            setTimeout(() => {
+                try {
+                    const proporcion = lastDetection.proporcion;
+                    const clasificacion = clasificarRostro(proporcion);
+                    
+                    resultName.textContent = clasificacion.tipo;
+                    resultIcon.textContent = clasificacion.icono;
+                    resultDescription.textContent = clasificacion.descripcion;
+                    ratioVal.textContent = proporcion;
+                    cheekVal.textContent = clasificacion.tipo.split(" ")[0];
+                    
+                    canvasConfetti({ particleCount: 100, spread: 60, origin: { y: 0.8 } });
+                    
+                } catch (error) {
+                    console.error("Error en análisis:", error);
+                    alert("Error al analizar. Intenta de nuevo con buena iluminación.");
+                } finally {
+                    loadingDiv.style.display = "none";
+                }
+            }, 100);
+        }
+
+        // Iniciar cámara y detección
+        async function iniciarCamara() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: "user" }
+                });
+                video.srcObject = stream;
+                
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        resolve();
+                    };
+                });
+                
+                await video.play();
+                
+                // Enviar frames a MediaPipe
+                const sendToMediaPipe = async () => {
+                    if (!modelsReady || !video.videoWidth) {
+                        requestAnimationFrame(sendToMediaPipe);
+                        return;
+                    }
+                    await faceDetection.send({ image: video });
+                    requestAnimationFrame(sendToMediaPipe);
+                };
+                
+                btnStart.disabled = true;
+                btnStart.innerHTML = '<i class="fas fa-check"></i> Cámara activa';
+                faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Iniciando detección...';
+                
+                sendToMediaPipe();
+                
+            } catch (error) {
+                console.error(error);
+                alert("No se pudo acceder a la cámara. Verifica los permisos.");
+                faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error de cámara';
+                faceStatus.style.background = 'rgba(244,67,54,0.8)';
+            }
+        }
+
+        // Eventos
+        btnStart.addEventListener('click', iniciarCamara);
+        btnAnalyze.addEventListener('click', analizarRostro);
+        
+        // Iniciar
+        initMediaPipe();
+    })();
+</script>
+</body>
+</html>
