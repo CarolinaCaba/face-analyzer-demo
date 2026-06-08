@@ -275,7 +275,7 @@
     </div>
 </div>
 
-<!-- MediaPipe Face Detection (más ligero y con CDN confiable) -->
+<!-- MediaPipe Face Detection -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
 
@@ -299,32 +299,59 @@
         let stream = null;
         let currentDetection = null;
         let modelsReady = false;
-        let lastDetection = null;
+        let animationRunning = false;
 
         // Clasificación de rostro basada en proporción ancho/alto
         function clasificarRostro(proporcion) {
             const r = parseFloat(proporcion);
             
             if (r >= 1.35 && r <= 1.55) {
-                return { tipo: "Rostro Ovalado", icono: "🥚", descripcion: "Proporciones equilibradas. Es el tipo más versátil para cualquier estilo de peinado y gafas." };
+                return { 
+                    tipo: "Rostro Ovalado", 
+                    icono: "🥚", 
+                    descripcion: "Proporciones equilibradas. Es el tipo más versátil para cualquier estilo de peinado y gafas." 
+                };
             }
             if (r >= 1.0 && r <= 1.2) {
-                return { tipo: "Rostro Redondo", icono: "⚪", descripcion: "Ancho y alto similares. Los peinados con volumen en la parte superior ayudan a estilizar." };
+                return { 
+                    tipo: "Rostro Redondo", 
+                    icono: "⚪", 
+                    descripcion: "Ancho y alto similares. Los peinados con volumen en la parte superior ayudan a estilizar." 
+                };
             }
             if (r > 1.6) {
-                return { tipo: "Rostro Alargado", icono: "📏", descripcion: "Rostro más largo que ancho. El flequillo y los cortes en capas ayudan a acortar visualmente." };
+                return { 
+                    tipo: "Rostro Alargado", 
+                    icono: "📏", 
+                    descripcion: "Rostro más largo que ancho. El flequillo y los cortes en capas ayudan a acortar visualmente." 
+                };
             }
             if (r >= 1.2 && r <= 1.35) {
-                return { tipo: "Rostro Cuadrado", icono: "⬛", descripcion: "Mandíbula angular y marcada. Los cortes en capas y el volumen en la parte superior suavizan los ángulos." };
+                return { 
+                    tipo: "Rostro Cuadrado", 
+                    icono: "⬛", 
+                    descripcion: "Mandíbula angular y marcada. Los cortes en capas y el volumen en la parte superior suavizan los ángulos." 
+                };
             }
-            return { tipo: "Rostro Mixto", icono: "✨", descripcion: "Combinación de características únicas. ¡Eres único/a! Consulta con un estilista para un análisis más detallado." };
+            return { 
+                tipo: "Rostro Mixto", 
+                icono: "✨", 
+                descripcion: "Combinación de características únicas. ¡Eres único/a! Consulta con un estilista para un análisis más detallado." 
+            };
         }
 
-        // Dibujar bounding box
+        // Dibujar detección en canvas
         function dibujarDeteccion(detections) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            if (!detections || detections.length === 0) return;
+            if (!detections || detections.length === 0) {
+                if (faceStatus) {
+                    faceStatus.innerHTML = '<i class="fas fa-eye-slash"></i> No se detecta rostro. ¿Estás mirando a la cámara?';
+                    faceStatus.style.background = 'rgba(0,0,0,0.7)';
+                }
+                btnAnalyze.disabled = true;
+                return null;
+            }
             
             const detection = detections[0];
             const box = detection.boundingBox;
@@ -337,42 +364,45 @@
             // Calcular proporción
             const proporcion = (box.height / box.width).toFixed(2);
             
-            // Mostrar proporción
-            ctx.font = 'bold 16px Inter';
+            // Mostrar proporción dentro del rectángulo
+            ctx.font = 'bold 14px Inter';
             ctx.fillStyle = '#667eea';
-            ctx.fillText(`Proporción: ${proporcion}`, box.xMin, box.yMin - 8);
+            ctx.fillText(`Proporción: ${proporcion}`, box.xMin + 5, box.yMin + 20);
             
-            return { proporcion, box };
+            // Mostrar estado
+            if (faceStatus) {
+                faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Rostro detectado ✅';
+                faceStatus.style.background = 'rgba(76,175,80,0.8)';
+            }
+            btnAnalyze.disabled = false;
+            
+            return { proporcion: proporcion, box: box };
         }
 
         // Procesar resultados de MediaPipe
         function onResults(results) {
-            if (!results || !results.detections || results.detections.length === 0) {
-                if (faceStatus) {
+            if (!results || !results.detections) {
+                currentDetection = null;
+                if (faceStatus && !btnAnalyze.disabled) {
                     faceStatus.innerHTML = '<i class="fas fa-eye-slash"></i> No se detecta rostro. ¿Estás mirando a la cámara?';
                     faceStatus.style.background = 'rgba(0,0,0,0.7)';
+                    btnAnalyze.disabled = true;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
                 }
-                btnAnalyze.disabled = true;
-                currentDetection = null;
                 return;
             }
             
-            currentDetection = results.detections[0];
             const resultado = dibujarDeteccion(results.detections);
-            
             if (resultado) {
-                faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Rostro detectado ✅';
-                faceStatus.style.background = 'rgba(76,175,80,0.8)';
-                btnAnalyze.disabled = false;
-                
-                // Guardar proporción para análisis
-                lastDetection = resultado;
+                currentDetection = resultado;
             }
         }
 
         // Configurar MediaPipe Face Detection
         async function initMediaPipe() {
-            faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Cargando modelos de IA...';
+            if (faceStatus) {
+                faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Cargando modelos de IA...';
+            }
             
             try {
                 faceDetection = new FaceDetection({
@@ -389,21 +419,29 @@
                 faceDetection.onResults(onResults);
                 
                 modelsReady = true;
-                faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Modelos listos. Activa la cámara.';
-                faceStatus.style.background = 'rgba(76,175,80,0.8)';
-                btnStart.disabled = false;
+                if (faceStatus) {
+                    faceStatus.innerHTML = '<i class="fas fa-check-circle"></i> Modelos listos. Activa la cámara.';
+                    faceStatus.style.background = 'rgba(76,175,80,0.8)';
+                }
+                if (btnStart) {
+                    btnStart.disabled = false;
+                }
+                
+                console.log("MediaPipe inicializado correctamente");
                 
             } catch (error) {
                 console.error("Error cargando MediaPipe:", error);
-                faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error cargando modelos. Recarga la página.';
-                faceStatus.style.background = 'rgba(244,67,54,0.8)';
+                if (faceStatus) {
+                    faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error cargando modelos. Recarga la página.';
+                    faceStatus.style.background = 'rgba(244,67,54,0.8)';
+                }
             }
         }
 
         // Analizar rostro
         function analizarRostro() {
-            if (!lastDetection) {
-                alert("No se detecta ningún rostro. Asegúrate de mirar directamente a la cámara.");
+            if (!currentDetection) {
+                alert("No se detecta ningún rostro. Asegúrate de mirar directamente a la cámara y tener buena iluminación.");
                 return;
             }
             
@@ -411,16 +449,21 @@
             
             setTimeout(() => {
                 try {
-                    const proporcion = lastDetection.proporcion;
+                    const proporcion = currentDetection.proporcion;
                     const clasificacion = clasificarRostro(proporcion);
                     
-                    resultName.textContent = clasificacion.tipo;
-                    resultIcon.textContent = clasificacion.icono;
-                    resultDescription.textContent = clasificacion.descripcion;
-                    ratioVal.textContent = proporcion;
-                    cheekVal.textContent = clasificacion.tipo.split(" ")[0];
+                    if (resultName) resultName.textContent = clasificacion.tipo;
+                    if (resultIcon) resultIcon.textContent = clasificacion.icono;
+                    if (resultDescription) resultDescription.textContent = clasificacion.descripcion;
+                    if (ratioVal) ratioVal.textContent = proporcion;
+                    if (cheekVal) cheekVal.textContent = clasificacion.tipo.split(" ")[0];
                     
-                    canvasConfetti({ particleCount: 100, spread: 60, origin: { y: 0.8 } });
+                    // Confeti
+                    if (typeof canvasConfetti !== 'undefined') {
+                        canvasConfetti({ particleCount: 100, spread: 60, origin: { y: 0.8 } });
+                    }
+                    
+                    console.log("Análisis completado:", clasificacion.tipo, "proporción:", proporcion);
                     
                 } catch (error) {
                     console.error("Error en análisis:", error);
@@ -443,41 +486,58 @@
                     video.onloadedmetadata = () => {
                         canvas.width = video.videoWidth;
                         canvas.height = video.videoHeight;
+                        console.log("Canvas dimensiones:", canvas.width, canvas.height);
                         resolve();
                     };
                 });
                 
                 await video.play();
+                console.log("Video reproduciéndose");
                 
-                // Enviar frames a MediaPipe
-                const sendToMediaPipe = async () => {
+                // Procesar frames continuamente
+                const processFrame = async () => {
                     if (!modelsReady || !video.videoWidth) {
-                        requestAnimationFrame(sendToMediaPipe);
+                        requestAnimationFrame(processFrame);
                         return;
                     }
-                    await faceDetection.send({ image: video });
-                    requestAnimationFrame(sendToMediaPipe);
+                    
+                    try {
+                        await faceDetection.send({ image: video });
+                    } catch (error) {
+                        console.error("Error procesando frame:", error);
+                    }
+                    
+                    requestAnimationFrame(processFrame);
                 };
                 
                 btnStart.disabled = true;
                 btnStart.innerHTML = '<i class="fas fa-check"></i> Cámara activa';
-                faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Iniciando detección...';
                 
-                sendToMediaPipe();
+                if (faceStatus) {
+                    faceStatus.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Iniciando detección...';
+                }
+                
+                processFrame();
                 
             } catch (error) {
-                console.error(error);
+                console.error("Error accediendo a la cámara:", error);
                 alert("No se pudo acceder a la cámara. Verifica los permisos.");
-                faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error de cámara';
-                faceStatus.style.background = 'rgba(244,67,54,0.8)';
+                if (faceStatus) {
+                    faceStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error de cámara';
+                    faceStatus.style.background = 'rgba(244,67,54,0.8)';
+                }
             }
         }
 
         // Eventos
-        btnStart.addEventListener('click', iniciarCamara);
-        btnAnalyze.addEventListener('click', analizarRostro);
+        if (btnStart) {
+            btnStart.addEventListener('click', iniciarCamara);
+        }
+        if (btnAnalyze) {
+            btnAnalyze.addEventListener('click', analizarRostro);
+        }
         
-        // Iniciar
+        // Iniciar carga de modelos
         initMediaPipe();
     })();
 </script>
