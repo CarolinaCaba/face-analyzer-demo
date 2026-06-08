@@ -278,14 +278,13 @@
 <!-- Tracking.js para detección de rostro -->
 <script src="https://cdn.jsdelivr.net/npm/tracking@1.1.3/build/tracking-min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tracking@1.1.3/build/data/face-min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
 
 <script>
     (function() {
         // Elementos DOM
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('overlayCanvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true }); // Optimización
         const btnStart = document.getElementById('btnStart');
         const btnAnalyze = document.getElementById('btnAnalyze');
         const loadingDiv = document.getElementById('loading');
@@ -299,6 +298,36 @@
         let currentDetection = null;
         let tracker = null;
         let stream = null;
+
+        // Función de confeti manual (sin dependencia externa)
+        function lanzarConfeti() {
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b'];
+            
+            for (let i = 0; i < 80; i++) {
+                const confetti = document.createElement('div');
+                confetti.style.position = 'fixed';
+                confetti.style.width = '8px';
+                confetti.style.height = '8px';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.left = Math.random() * window.innerWidth + 'px';
+                confetti.style.top = '-10px';
+                confetti.style.borderRadius = '50%';
+                confetti.style.pointerEvents = 'none';
+                confetti.style.zIndex = '9999';
+                confetti.style.opacity = '0.8';
+                document.body.appendChild(confetti);
+                
+                const animation = confetti.animate([
+                    { transform: 'translateY(0) rotate(0deg)', opacity: 0.8 },
+                    { transform: `translateY(${window.innerHeight}px) rotate(${Math.random() * 360}deg)`, opacity: 0 }
+                ], {
+                    duration: 1500 + Math.random() * 1000,
+                    easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                });
+                
+                animation.onfinish = () => confetti.remove();
+            }
+        }
 
         // Clasificación de rostro
         function clasificarRostro(proporcion) {
@@ -392,7 +421,7 @@
                     ratioVal.textContent = proporcion;
                     cheekVal.textContent = clasificacion.tipo.split(" ")[0];
                     
-                    canvasConfetti({ particleCount: 100, spread: 60, origin: { y: 0.8 } });
+                    lanzarConfeti();
                     
                 } catch (error) {
                     console.error("Error:", error);
